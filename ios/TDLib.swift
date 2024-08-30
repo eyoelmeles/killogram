@@ -17,9 +17,10 @@ class TDLib: RCTEventEmitter {
   }
   
   private var updateListenerActive = false
+  private var client: UnsafeMutableRawPointer?
   
   func createClient(_ resolve:RCTPromiseResolveBlock,reject:RCTPromiseRejectBlock) {
-    let client: UnsafeMutableRawPointer? = td_json_client_create();
+    client = td_json_client_create();
     if (client == nil) {
       let error = NSError(domain: "", code: 200, userInfo: nil);
       reject("ERROR_ON_CLIENT", "Something not sure", error);
@@ -29,17 +30,12 @@ class TDLib: RCTEventEmitter {
   }
   
   @objc(json_client_send:request:resolve:reject:)
-  func json_client_send(_ client: NSNumber, request: NSString, resolve: @escaping RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
-    let clientPointer = UnsafeMutableRawPointer(bitPattern: client.uintValue)
+  func json_client_send(_ clients: NSNumber, request: NSString, resolve: @escaping RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
+    let clientPointer = UnsafeMutableRawPointer(bitPattern: clients.uintValue)
     let requestString = request as String
 
-    guard !requestString.isEmpty else {
-      print("Request string is empty.")
-      return
-    }
-
     requestString.withCString { cStringRequest in
-      td_json_client_send(clientPointer, cStringRequest)
+      td_json_client_send(client, cStringRequest)
     }
     
     DispatchQueue.global().asyncAfter(deadline: .now() + 1.0) {
@@ -76,7 +72,8 @@ class TDLib: RCTEventEmitter {
   
   @objc
   func json_client_create(_ resolve:RCTPromiseResolveBlock,reject:RCTPromiseRejectBlock) {
-      let client = td_json_client_create()
+      client = td_json_client_create()
+      
       resolve(NSNumber(value: Int(bitPattern: client)))
   }
   
