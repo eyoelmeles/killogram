@@ -22,19 +22,17 @@ const { TDLib } = NativeModules;
 const eventEmitter = new NativeEventEmitter(TDLib);
 
 export default function HomeScreen() {
-  const [client, setClient] = useState(null);
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("+251983497883");
   const [code, setCode] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [updates, setUpdates] = useState<any>([]);
   const [tdlibResponse, setTdlibResponse] = useState(null);
 
   useEffect(() => {
-    TDLib.json_client_create()
+    TDLib.createClient()
       .then((newClient: any) => {
         console.log("NEW CLIENT", newClient);
-        setClient(newClient);
-        TDLib.startUpdateListener(newClient)
+        TDLib.startUpdateListener()
           .then(() => console.log("Update listener started"))
           .catch((error: any) =>
             console.error("Error starting listener:", error)
@@ -54,6 +52,7 @@ export default function HomeScreen() {
         if (parsedUpdate["@type"] === "updateAuthorizationState") {
           const state = parsedUpdate.authorization_state["@type"];
           if (state === "authorizationStateWaitPhoneNumber") {
+            console.log("☎️ PHONE NUMBER: ", phoneNumber);
             requestPhoneNumber();
           } else if (state === "authorizationStateWaitCode") {
             // Prompt user for the authentication code
@@ -66,14 +65,11 @@ export default function HomeScreen() {
     );
 
     return () => {
-      // Cleanup: Destroy the client when the component unmounts
-      if (client) {
-        TDLib.json_client_destroy(client)
-          .then(() => console.log("Client destroyed"))
-          .catch((error: any) =>
-            console.error("Error destroying client:", error)
-          );
-      }
+      TDLib.json_client_destroy()
+        .then(() => console.log("Client destroyed"))
+        .catch((error: any) =>
+          console.error("Error destroying client:", error)
+        );
       subscription.remove();
     };
   }, []);
@@ -130,7 +126,7 @@ export default function HomeScreen() {
     };
     const jsonString = JSON.stringify(tdlibParameters);
     console.log("JSON STRINGIFIED: ", jsonString);
-    TDLib.json_client_send(client, jsonString)
+    TDLib.json_client_send(jsonString)
       .then((result: any) => {
         console.log(result);
       })
@@ -141,7 +137,6 @@ export default function HomeScreen() {
 
   const requestPhoneNumber = () => {
     TDLib.json_client_send(
-      client,
       JSON.stringify({
         "@type": "setAuthenticationPhoneNumber",
         phone_number: phoneNumber,
@@ -156,7 +151,6 @@ export default function HomeScreen() {
 
   const submitCode = () => {
     TDLib.json_client_send(
-      client,
       JSON.stringify({
         "@type": "checkAuthenticationCode",
         code: code,
